@@ -82,6 +82,5 @@ streamlit run app.py
 
 ## 📖 Reference Material & Credits
 
-*   **Subject**: Subject instructions are derived from `mini projet nlp.pdf`.
 *   **Reference Book**: Inspired by *"Natural Language Processing with Transformers: Building Language Applications with Hugging Face"* (Chapters 2, 6, 7 & 9).
 *   **Institution**: École Nationale des Sciences Appliquées - Al Hoceima (Ingénierie des Données - 2ème Année).
