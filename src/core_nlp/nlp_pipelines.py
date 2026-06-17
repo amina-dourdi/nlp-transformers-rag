@@ -38,33 +38,47 @@ _qa_tokenizer = None
 _qa_model = None
 
 _classification_pipeline = None
-_summarization_pipeline = None
+_summarizer_tokenizer = None
+_summarizer_model = None
 
 
 def init_pipelines():
     """
     Initialise les modèles Hugging Face pour les tâches d'Amina.
     """
-    global _sentiment_pipeline, _qa_tokenizer, _qa_model, _classification_pipeline, _summarization_pipeline
+    global _sentiment_pipeline, _qa_tokenizer, _qa_model, _classification_pipeline
+    global _summarizer_tokenizer, _summarizer_model
     
    
 
     print("🔄 Initialisation du pipeline d'Analyse de Sentiment...")
-    # Pipeline de sentiment-analysis utilisant le modèle défini dans config.py
-    _sentiment_pipeline = pipeline("sentiment-analysis", model=NLP_SENTIMENT_MODEL)
+    try:
+        _sentiment_pipeline = pipeline("sentiment-analysis", model=NLP_SENTIMENT_MODEL)
+    except Exception as e:
+        print(f"Erreur Sentiment: {e}")
     
     print("🔄 Initialisation des composants de Question Answering (Manuel)...")
-    # Chargement manuel (Chapitre 7) pour éviter les bugs de la fonction pipeline()
-    _qa_tokenizer = AutoTokenizer.from_pretrained(NLP_QA_MODEL)
-    _qa_model = AutoModelForQuestionAnswering.from_pretrained(NLP_QA_MODEL)
+    try:
+        _qa_tokenizer = AutoTokenizer.from_pretrained(NLP_QA_MODEL)
+        _qa_model = AutoModelForQuestionAnswering.from_pretrained(NLP_QA_MODEL)
+    except Exception as e:
+        print(f"Erreur QA: {e}")
     
     print("🔄 Initializing Text Classification Pipeline ...")
-    # Setting up the pipeline using config parameters (e.g., distilbert-base-uncased-finetuned-sst-2-english)
-    _classification_pipeline = pipeline("text-classification", model=NLP_CLASSIFICATION_MODEL)
+    try:
+        _classification_pipeline = pipeline("text-classification", model=NLP_CLASSIFICATION_MODEL)
+    except Exception as e:
+        print(f"Erreur Classification: {e}")
 
-    print("🔄 Initializing Text Summarization Pipeline...")
-    _summarization_pipeline = pipeline("summarization",  model=NLP_SUMMARIZATION_MODEL)
-    print("✅ Les modèles d'Amina sont prêts !")
+    print("🔄 Initializing Text Summarization Pipeline (Manuel)...")
+    try:
+        from transformers import AutoModelForSeq2SeqLM
+        _summarizer_tokenizer = AutoTokenizer.from_pretrained(NLP_SUMMARIZATION_MODEL)
+        _summarizer_model = AutoModelForSeq2SeqLM.from_pretrained(NLP_SUMMARIZATION_MODEL)
+    except Exception as e:
+        print(f"Erreur Summarization: {e}")
+        
+    print("✅ Initialisation terminée (avec ou sans erreurs) !")
 
 def analyze_sentiment(text: str) -> dict:
     """
@@ -138,31 +152,32 @@ def classify_text(text: str) -> dict:
 def summarize_text(text: str) -> str:
     """
     Generates a concise abstractive summary from a raw dialogue or text sequence 
-    using the configured pipeline model.
-    
-    Args:
-        text (str): The input dialogue script or text to summarize.
-        
-    Returns:
-        str: The generated text summary sequence, or an error message if inference fails.
+    using the configured manual model.
     """
-    global _summarization_pipeline
+    global _summarizer_tokenizer, _summarizer_model
     
-    if _summarization_pipeline is None:
+    if _summarizer_model is None:
         init_pipelines()
         
     try:
-        # Runtime generation parameters configured to match testing constraints
-        gen_kwargs = {
-            "length_penalty": 0.8,
-            "num_beams": 8,
-            "max_length": 128,
-            "min_length": 32
-        }
+        if _summarizer_model is None:
+            return "Erreur : Le modèle de résumé n'a pas pu être chargé correctement (environnement Python)."
+            
+        # Tokenisation
+        inputs = _summarizer_tokenizer(text, max_length=1024, return_tensors="pt", truncation=True)
         
-        # Execute abstractive text generation through the pipeline layer
-        prediction = _summarization_pipeline(text, **gen_kwargs)[0]
-        return prediction["summary_text"]
+        # Génération
+        summary_ids = _summarizer_model.generate(
+            inputs["input_ids"],
+            length_penalty=0.8,
+            num_beams=8,
+            max_length=128,
+            min_length=32
+        )
+        
+        # Décodage
+        summary = _summarizer_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        return summary
         
     except Exception as e:
         print(f"❌ Generation Error: {str(e)}")
