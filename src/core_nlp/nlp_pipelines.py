@@ -37,12 +37,18 @@ _sentiment_pipeline = None
 _qa_tokenizer = None
 _qa_model = None
 
+_classification_pipeline = None
+_summarization_pipeline = None
+
+
 def init_pipelines():
     """
     Initialise les modèles Hugging Face pour les tâches d'Amina.
     """
-    global _sentiment_pipeline, _qa_tokenizer, _qa_model
+    global _sentiment_pipeline, _qa_tokenizer, _qa_model, _classification_pipeline, _summarization_pipeline
     
+   
+
     print("🔄 Initialisation du pipeline d'Analyse de Sentiment...")
     # Pipeline de sentiment-analysis utilisant le modèle défini dans config.py
     _sentiment_pipeline = pipeline("sentiment-analysis", model=NLP_SENTIMENT_MODEL)
@@ -52,6 +58,12 @@ def init_pipelines():
     _qa_tokenizer = AutoTokenizer.from_pretrained(NLP_QA_MODEL)
     _qa_model = AutoModelForQuestionAnswering.from_pretrained(NLP_QA_MODEL)
     
+    print("🔄 Initializing Text Classification Pipeline ...")
+    # Setting up the pipeline using config parameters (e.g., distilbert-base-uncased-finetuned-sst-2-english)
+    _classification_pipeline = pipeline("text-classification", model=NLP_CLASSIFICATION_MODEL)
+
+    print("🔄 Initializing Text Summarization Pipeline...")
+    _summarization_pipeline = pipeline("summarization",  model=NLP_SUMMARIZATION_MODEL)
     print("✅ Les modèles d'Amina sont prêts !")
 
 def analyze_sentiment(text: str) -> dict:
@@ -92,3 +104,66 @@ def answer_question(question: str, context: str) -> dict:
     score = (torch.max(outputs.start_logits) + torch.max(outputs.end_logits)).item() / 2.0
     
     return {"answer": answer, "score": score}
+
+def classify_text(text: str) -> dict:
+    """
+    Executes raw text classification using the cached pipeline.
+    
+    Args:
+        text (str): The raw text sequence to be evaluated (e.g., product review or statement).
+        
+    Returns:
+        dict: A formatted dictionary tracking the predicted label string and confidence float.
+    """
+    if _classification_pipeline is None:
+        init_pipelines()
+        
+    try:
+        # Run inference through the pipeline layer
+        prediction = _classification_pipeline(text)[0]
+        
+        return {
+            "status": "success",
+            "label": prediction["label"],
+            "confidence": round(prediction["score"], 4)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+    
+
+
+def summarize_text(text: str) -> str:
+    """
+    Generates a concise abstractive summary from a raw dialogue or text sequence 
+    using the configured pipeline model.
+    
+    Args:
+        text (str): The input dialogue script or text to summarize.
+        
+    Returns:
+        str: The generated text summary sequence, or an error message if inference fails.
+    """
+    global _summarization_pipeline
+    
+    if _summarization_pipeline is None:
+        init_pipelines()
+        
+    try:
+        # Runtime generation parameters configured to match testing constraints
+        gen_kwargs = {
+            "length_penalty": 0.8,
+            "num_beams": 8,
+            "max_length": 128,
+            "min_length": 32
+        }
+        
+        # Execute abstractive text generation through the pipeline layer
+        prediction = _summarization_pipeline(text, **gen_kwargs)[0]
+        return prediction["summary_text"]
+        
+    except Exception as e:
+        print(f"❌ Generation Error: {str(e)}")
+        return f"Error during summarization: {str(e)}"

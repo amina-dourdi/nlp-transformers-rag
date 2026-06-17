@@ -2,11 +2,11 @@
 import os
 
 # Choix des modèles Hugging Face (Phase 1)
-NLP_CLASSIFIER_MODEL = "bhadresh-savani/distilbert-base-uncased-emotion" # Classification d'émotions (Chapitre 2 du livre)
-NLP_SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"   # Analyse de sentiment (Positif/Négatif)
-NLP_QA_MODEL = "deepset/roberta-base-squad2"                               # Question Answering (QA)
-NLP_SUMMARIZER_MODEL = "facebook/bart-large-cnn"                           # Résumé automatique (Summarization)
-
+NLP_CLASSIFICATION_MODEL = "bhadresh-savani/distilbert-base-uncased-emotion"
+NLP_SENTIMENT_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"   
+NLP_QA_MODEL = "deepset/roberta-base-squad2"                               
+NLP_SUMMARIZATION_MODEL = "facebook/bart-large-cnn"     
+                    
 # Choix des modèles RAG
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 GENERATIVE_LLM_MODEL = "google/gemma-2b-it"
