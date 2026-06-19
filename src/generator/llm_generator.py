@@ -61,18 +61,19 @@ class RAGGenerator:
             for c in contexts
         ])
 
-        prompt = f"""Vous êtes un assistant IA pédagogique et rigoureux.
-Répondez de manière structurée et claire à la question posée en vous basant uniquement sur le contexte ci-dessous.
-Si la réponse ne figure pas dans le contexte fourni, dites simplement : "Je ne trouve pas la réponse dans les documents fournis."
+        prompt = f"""Vous êtes un professeur. Répondez à la question en utilisant le contexte.
 
-Contexte extrait du cours :
----------------------
+Contexte :
 {combined_context}
----------------------
 
-Question de l'étudiant : {query}
+---
+Exemple :
+Question : Qu'est-ce que le NLP ?
+Réponse : Le NLP (Natural Language Processing) est une branche de l'IA qui permet aux ordinateurs de comprendre le langage humain.
+---
 
-Réponse claire et détaillée :"""
+Question : {query}
+Réponse :"""
         return prompt
 
     # ──────────────────────────────────────────────
@@ -96,14 +97,26 @@ Réponse claire et détaillée :"""
         try:
             response = self.client.text_generation(
                 prompt,
-                max_new_tokens=512,      # Longueur maximale de la réponse générée
-                temperature=0.3,         # Peu d'aléatoire → réponses précises et fiables
-                repetition_penalty=1.2,  # Pénalise les répétitions dans le texte généré
+                max_new_tokens=100,
+                do_sample=False
             )
+            if not response or not response.strip():
+                raise ValueError("Réponse API vide")
             return response.strip()
 
         except Exception as e:
-            return f"❌ Erreur de génération : {e}"
+            # 🚀 FALLBACK LOCAL : Exécution locale d'un petit LLM parlant français si l'API crashe
+            try:
+                from transformers import pipeline
+                if not hasattr(self, "local_pipeline"):
+                    import streamlit as st
+                    with st.spinner("L'API a échoué. Téléchargement d'un modèle d'IA local en français (Bloomz, ~1 Go)... Patientez la première fois !"):
+                        self.local_pipeline = pipeline("text-generation", model="bigscience/bloomz-560m")
+                
+                res = self.local_pipeline(prompt, max_new_tokens=100, return_full_text=False)
+                return res[0]["generated_text"].strip()
+            except Exception as e_local:
+                return f"❌ L'API a échoué ({type(e).__name__}) ET le mode hors-ligne a échoué ({e_local})"
 
     # ──────────────────────────────────────────────
     # Génération SANS RAG (pour la comparaison)
@@ -132,11 +145,22 @@ Réponse :"""
         try:
             response = self.client.text_generation(
                 prompt,
-                max_new_tokens=512,
-                temperature=0.3,
-                repetition_penalty=1.2,
+                max_new_tokens=100,
+                do_sample=False
             )
+            if not response or not response.strip():
+                raise ValueError("Réponse API vide")
             return response.strip()
 
         except Exception as e:
-            return f"❌ Erreur de génération : {e}"
+            try:
+                from transformers import pipeline
+                if not hasattr(self, "local_pipeline"):
+                    import streamlit as st
+                    with st.spinner("L'API a échoué. Téléchargement d'un modèle d'IA local en français (Bloomz, ~1 Go)... Patientez la première fois !"):
+                        self.local_pipeline = pipeline("text-generation", model="bigscience/bloomz-560m")
+                
+                res = self.local_pipeline(prompt, max_new_tokens=100, return_full_text=False)
+                return res[0]["generated_text"].strip()
+            except Exception as e_local:
+                return f"❌ L'API a échoué ({type(e).__name__}) ET le mode hors-ligne a échoué ({e_local})"

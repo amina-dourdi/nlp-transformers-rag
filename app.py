@@ -153,8 +153,8 @@ with tab2:
         # Initialisation des gestionnaires dans la session (pour ne pas tout recharger)
         if "vector_store" not in st.session_state:
             st.session_state.vector_store = VectorStoreManager(EMBEDDING_MODEL_NAME, VECTOR_DB_PATH)
-        if "rag_generator" not in st.session_state:
-            st.session_state.rag_generator = RAGGenerator()
+        # Forcer le rechargement du générateur pour appliquer nos changements
+        st.session_state.rag_generator = RAGGenerator()
         if "is_indexed" not in st.session_state:
             st.session_state.is_indexed = False
 
@@ -200,7 +200,7 @@ with tab2:
                             result = st.session_state.rag_generator.generate(rag_query, contexts)
                             
                             st.success("**Réponse du Modèle :**")
-                            st.write(result["answer"])
+                            st.info(result)
                             
                             # Afficher les sources trouvées
                             with st.expander("🔍 Voir les sources utilisées par le modèle"):

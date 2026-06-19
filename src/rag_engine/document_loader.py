@@ -75,6 +75,13 @@ def get_chunks(documents: List[Dict[str, str]]) -> List[Dict[str, str]]:
         
         while start < len(text):
             end = start + CHUNK_SIZE
+            
+            # Ne pas couper les mots en plein milieu : trouver le dernier espace
+            if end < len(text):
+                last_space = text.rfind(' ', start, end)
+                if last_space != -1 and last_space > start:
+                    end = last_space
+                    
             chunk_text = text[start:end]
             
             if chunk_text.strip():
@@ -85,7 +92,13 @@ def get_chunks(documents: List[Dict[str, str]]) -> List[Dict[str, str]]:
                 chunk_num += 1
                 
             # Move forward while preserving overlap for semantic continuity
-            start += (CHUNK_SIZE - CHUNK_OVERLAP)
+            start = end - CHUNK_OVERLAP
+            
+            # Pour l'overlap, s'assurer de commencer au début d'un mot
+            if start > 0 and start < len(text):
+                next_space = text.find(' ', start, end)
+                if next_space != -1:
+                    start = next_space + 1
             
     print(
         f"✂️ Chunking completed: {len(chunks)} chunks created from {len(documents)} pages."

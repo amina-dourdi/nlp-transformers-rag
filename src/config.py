@@ -9,7 +9,7 @@ NLP_SUMMARIZATION_MODEL = "facebook/bart-large-cnn"
                     
 # Choix des modèles RAG
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-GENERATIVE_LLM_MODEL = "google/gemma-2b-it"
+GENERATIVE_LLM_MODEL = "bigscience/bloomz-560m"
 
 # Hyperparamètres RAG
 CHUNK_SIZE = 600       # Size of each chunk (in characters) to preserve context accuracy
