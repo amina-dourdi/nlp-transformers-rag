@@ -1,10 +1,40 @@
 # src/rag_engine/document_loader.py
-# ==========================================
-# PHASE 2 : RAG - Chargement & Découpage
-# ==========================================
-
-# - Charger les documents PDF ou TXT
-# - Découper les textes en chunks (segments)
+# ============================================================================
+# PHASE 2: DESIGN ARCHITECTURE: DOCUMENT LOADING & GRANULAR CHUNKING
+# ============================================================================
+# 1. The Problem (Why We Cannot Ingest Full Documents):
+# When a user queries the RAG system, the answer often resides within a specific 
+# paragraph inside a large corpus (e.g., a 14-page lecture or a 500-page book). 
+# Attempting to send raw, unsegmented documents directly to a Large Language Model (LLM) 
+# introduces three critical software engineering vulnerabilities:
+# 
+# - Context Window Saturation: LLMs operate under rigid computational constraints 
+#   known as token limits. Injecting full-length academic publications overflows 
+#   this boundary, crashing the runtime via memory exhaustion or context overflow.
+# - "Lost in the Middle" Phenomenon: Deep learning research proves that LLMs suffer 
+#   from severe attention degradation when processing heavy prompts; they retain 
+#   information at the absolute margins (beginning and end) while ignoring facts 
+#   buried in the middle.
+# - Computation & Latency Bottlenecks: Processing thousands of irrelevant words 
+#   for a simple query spikes latency, creating a sluggish user experience.
+#
+# 2. The Solution (Homogeneous Text Segmentation & Overlap Retention):
+# To establish an efficient search space, we transform monolithic files into dense, 
+# manageable data units through a two-fold engineering strategy implemented below:
+#
+# A. Strict Size Regularization (CHUNK_SIZE = 600):
+# Text extraction standardizes document structures page-by-page. We slice raw strings 
+# into uniform packets of 600 characters. This dimension isolates specific definitions, 
+# concepts, or equations, ensuring that our FAISS vector index retrieves exactly 
+# the relevant context needed, rather than drowning the generator in noise.
+#
+# B. Sliding Window Semantic Preservation (CHUNK_OVERLAP = 100):
+# Arbitrary hard cuts threaten text integrity, often splitting key phrases across 
+# separate blocks and breaking their semantic meaning. By implementing a 100-character 
+# "Overlap" (chevauchement), trailing characters of a chunk are repeated at the onset 
+# of the next. This sliding window guarantees absolute semantic continuity and contextual 
+# preservation across boundary layers.
+# ============================================================================
 
 from typing import List, Dict
 import os
