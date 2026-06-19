@@ -193,20 +193,27 @@ with tab2:
                 if st.button("🚀 Obtenir la Réponse"):
                     with st.spinner("Recherche dans les PDF et Génération LLM..."):
                         try:
-                            # ÉTAPE 1 : Firdawss cherche le contexte
+                            # Recherche du contexte
                             contexts = st.session_state.vector_store.search_top_k(rag_query, k=3)
                             
-                            # ÉTAPE 2 : Amina génère la réponse
-                            result = st.session_state.rag_generator.generate(rag_query, contexts)
+                            col_rag, col_no_rag = st.columns(2)
                             
-                            st.success("**Réponse du Modèle :**")
-                            st.info(result)
-                            
-                            # Afficher les sources trouvées
-                            with st.expander("🔍 Voir les sources utilisées par le modèle"):
-                                for i, ctx in enumerate(contexts):
-                                    st.markdown(f"**Source {i+1} : {ctx['source']}**")
-                                    st.info(ctx['text'])
-                                    
+                            with col_rag:
+                                st.subheader("✅ Avec RAG")
+                                result = st.session_state.rag_generator.generate(rag_query, contexts)
+                                st.success("**Réponse du Modèle :**")
+                                st.info(result)
+                                
+                                with st.expander("🔍 Voir les sources utilisées"):
+                                    for i, ctx in enumerate(contexts):
+                                        st.markdown(f"**Source {i+1} : {ctx['source']}**")
+                                        st.info(ctx['text'])
+                                        
+                            with col_no_rag:
+                                st.subheader("❌ Sans RAG")
+                                result_no_rag = st.session_state.rag_generator.generate_without_rag(rag_query)
+                                st.error("**Réponse du Modèle :**")
+                                st.info(result_no_rag)
+                                
                         except Exception as e:
                             st.error(f"Une erreur est survenue lors de la génération : {e}")
