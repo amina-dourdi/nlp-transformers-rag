@@ -5,3 +5,4 @@ faiss-cpu
 streamlit
 pypdf
 langchain
+huggingface_hub
