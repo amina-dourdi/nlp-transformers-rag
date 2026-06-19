@@ -109,11 +109,15 @@ Réponse :"""
             try:
                 from transformers import pipeline
                 if not hasattr(self, "local_pipeline"):
-                    import streamlit as st
-                    with st.spinner("L'API a échoué. Téléchargement d'un modèle d'IA local en français (Bloomz, ~1 Go)... Patientez la première fois !"):
-                        self.local_pipeline = pipeline("text-generation", model="bigscience/bloomz-560m")
-                
-                res = self.local_pipeline(prompt, max_new_tokens=100, return_full_text=False)
+                    try:
+                        import streamlit as st
+                        with st.spinner("L'API a échoué. Téléchargement d'un modèle d'IA local en français (Bloomz, ~1 Go)... Patientez la première fois !"):
+                            self.local_pipeline = pipeline("text-generation", model=GENERATIVE_LLM_MODEL, device_map="auto")
+                    except ImportError:
+                        print("L'API a échoué. Téléchargement d'un modèle d'IA local en français (Bloomz, ~1 Go)... Patientez la première fois !")
+                        self.local_pipeline = pipeline("text-generation", model=GENERATIVE_LLM_MODEL, device_map="auto")
+                        
+                res = self.local_pipeline(prompt, max_new_tokens=100, do_sample=True, temperature=0.7)
                 return res[0]["generated_text"].strip()
             except Exception as e_local:
                 return f"❌ L'API a échoué ({type(e).__name__}) ET le mode hors-ligne a échoué ({e_local})"
