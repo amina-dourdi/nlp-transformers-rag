@@ -12,7 +12,9 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 GENERATIVE_LLM_MODEL = "google/gemma-2b-it"
 
 # Hyperparamètres RAG
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+
+CHUNK_SIZE = 600       # Size of each chunk (in characters) to preserve context accuracy
+CHUNK_OVERLAP = 100    # Overlap between chunks to avoid splitting ideas and sentences
+
 VECTOR_DB_PATH = "data/faiss_index"
 CORPUS_DIR = "data/corpus"

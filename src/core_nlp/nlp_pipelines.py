@@ -3,167 +3,132 @@
 # PHASE 1 : exploration et pipelines NLP
 # ==========================================
 
-# 🟦 Amina's Tasks:
 # 1. Analyse de sentiment (sentiment-analysis)
 # 2. Question Answering (QA) - extraction de réponse
 
-# 🟫 Firdawss's Tasks:
-# 1. Classification de texte (text-classification)
-# 2. Résumé automatique (summarization)
+# 3. Classification de texte (text-classification)
+# 4. Résumé automatique (summarization)
 
-from transformers import AutoTokenizer, AutoModel, pipeline, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer, pipeline, AutoModelForQuestionAnswering, AutoModelForSeq2SeqLM
 from src.config import *
 import torch
 
-def load_pretrained_model_and_tokenizer(model_name: str):
-    """
-    Charge un modèle pré-entraîné et son tokenizer associé depuis Hugging Face.
-    
-    Code basé sur le Livre de Référence (Chapitre 2) :
-    - AutoTokenizer.from_pretrained() -> Page 27
-    - AutoModel.from_pretrained()     -> Page 32
-    """
-    print(f"🔄 Chargement du tokenizer pour '{model_name}'...")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    
-    print(f"🔄 Chargement du modèle pré-entraîné '{model_name}'...")
-    model = AutoModel.from_pretrained(model_name)
-    
-    print("✅ Modèle et Tokenizer chargés avec succès !")
-    return tokenizer, model
 
-# Initialisation globale (mise en cache) pour éviter de recharger les modèles à chaque appel
+# ============================================================================
+# GLOBAL CACHES INITIALIZATION
+# ============================================================================
 _sentiment_pipeline = None
 _qa_tokenizer = None
 _qa_model = None
-
 _classification_pipeline = None
-_summarization_pipeline = None
 
+# Summarization is loaded explicitly and reliably to prevent Pipeline Registry errors
+_summarization_tokenizer = None
+_summarization_model = None
 
 def init_pipelines():
     """
-    Initialise les modèles Hugging Face pour les tâches d'Amina.
+    [Task F3 - Corrected] Initialize all Hugging Face models used in the project.
+    Fixes the Hugging Face KeyError by explicitly loading the Seq2Seq architecture for BART.
     """
-    global _sentiment_pipeline, _qa_tokenizer, _qa_model, _classification_pipeline, _summarization_pipeline
+    global _sentiment_pipeline, _qa_tokenizer, _qa_model
+    global _classification_pipeline, _summarization_tokenizer, _summarization_model
     
-   
-
-    print("🔄 Initialisation du pipeline d'Analyse de Sentiment...")
-    # Pipeline de sentiment-analysis utilisant le modèle défini dans config.py
+    print("==================================================")
+    print("🔄 INITIALIZATION OF ALL PROJECT MODEL CACHES...")
+    print("==================================================")
+    
+    # ────────────────────────────────────
+    print("🔄 Initializing Sentiment Analysis Pipeline...")
     _sentiment_pipeline = pipeline("sentiment-analysis", model=NLP_SENTIMENT_MODEL)
     
-    print("🔄 Initialisation des composants de Question Answering (Manuel)...")
-    # Chargement manuel (Chapitre 7) pour éviter les bugs de la fonction pipeline()
+    # ────────────────────────────────────
+    print("🔄 Initializing Question Answering Components (Manual Setup)...")
     _qa_tokenizer = AutoTokenizer.from_pretrained(NLP_QA_MODEL)
     _qa_model = AutoModelForQuestionAnswering.from_pretrained(NLP_QA_MODEL)
     
-    print("🔄 Initializing Text Classification Pipeline ...")
-    # Setting up the pipeline using config parameters (e.g., distilbert-base-uncased-finetuned-sst-2-english)
-    _classification_pipeline = pipeline("text-classification", model=NLP_CLASSIFICATION_MODEL)
+    # ────────────────────────────────────
+    print("🔄 Initializing Text Classification Pipeline...")
+    _classification_pipeline = pipeline("text-classification", model=NLP_CLASSIFIER_MODEL)
 
-    print("🔄 Initializing Text Summarization Pipeline...")
-    _summarization_pipeline = pipeline("summarization",  model=NLP_SUMMARIZATION_MODEL)
-    print("✅ Les modèles d'Amina sont prêts !")
+    # ────────────────────────────────────
+    print("🔄 Initializing Explicit Text Summarization Components...")
+    # Explicitly load the encoder-decoder architecture specialized for summarization
+    # to avoid issues in recent versions of the transformers library
+    _summarization_tokenizer = AutoTokenizer.from_pretrained(NLP_SUMMARIZATION_MODEL)
+    _summarization_model = AutoModelForSeq2SeqLM.from_pretrained(NLP_SUMMARIZATION_MODEL)
+    
+    print("\n✅ All pipelines are successfully cached and ready without errors!")
+
+# ============================================================================
+
 
 def analyze_sentiment(text: str) -> dict:
-    """
-    Fonction pour l'analyse de sentiment (Tâche Amina).
-    """
+    global _sentiment_pipeline
     if _sentiment_pipeline is None:
         init_pipelines()
-    
-    # Le pipeline retourne une liste de dictionnaires, ex: [{'label': 'POSITIVE', 'score': 0.99}]
     result = _sentiment_pipeline(text)
     return result[0]
 
+# ============================================================================
+
 def answer_question(question: str, context: str) -> dict:
-    """
-    Fonction pour le Question Answering (Tâche Amina).
-    Implémentation manuelle basée sur le Chapitre 7 du livre.
-    """
+    global _qa_tokenizer, _qa_model
     if _qa_tokenizer is None or _qa_model is None:
         init_pipelines()
         
-    # 1. Tokenisation de la question et du contexte
     inputs = _qa_tokenizer(question, context, return_tensors="pt")
-    
-    # 2. Passage dans le modèle pour obtenir les logits de début et de fin
     with torch.no_grad():
         outputs = _qa_model(**inputs)
     
-    # 3. Trouver les indices avec le score le plus élevé
     start_idx = torch.argmax(outputs.start_logits)
     end_idx = torch.argmax(outputs.end_logits) + 1
     
-    # 4. Extraire les tokens de la réponse et décoder en texte
-    answer_tokens = inputs.input_ids[0][start_idx:end_idx]
+    answer_tokens = inputs["input_ids"][0][start_idx:end_idx]
     answer = _qa_tokenizer.decode(answer_tokens, skip_special_tokens=True)
     
-    # Calculer un score de confiance basique (optionnel, pour garder le format)
     score = (torch.max(outputs.start_logits) + torch.max(outputs.end_logits)).item() / 2.0
-    
     return {"answer": answer, "score": score}
 
+# ============================================================================
+
 def classify_text(text: str) -> dict:
-    """
-    Executes raw text classification using the cached pipeline.
-    
-    Args:
-        text (str): The raw text sequence to be evaluated (e.g., product review or statement).
-        
-    Returns:
-        dict: A formatted dictionary tracking the predicted label string and confidence float.
-    """
+    global _classification_pipeline
     if _classification_pipeline is None:
         init_pipelines()
-        
     try:
-        # Run inference through the pipeline layer
         prediction = _classification_pipeline(text)[0]
-        
         return {
             "status": "success",
             "label": prediction["label"],
             "confidence": round(prediction["score"], 4)
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-    
+        return {"status": "error", "message": str(e)}
 
+# ============================================================================
 
-def summarize_text(text: str) -> str:
-    """
-    Generates a concise abstractive summary from a raw dialogue or text sequence 
-    using the configured pipeline model.
-    
-    Args:
-        text (str): The input dialogue script or text to summarize.
-        
-    Returns:
-        str: The generated text summary sequence, or an error message if inference fails.
-    """
-    global _summarization_pipeline
-    
-    if _summarization_pipeline is None:
+def summarize_text(text: str, max_length: int = 130, min_length: int = 30) -> dict:
+    """Generates a summary using an explicit Seq2Seq generation loop to guarantee execution."""
+    global _summarization_tokenizer, _summarization_model
+    if _summarization_tokenizer is None or _summarization_model is None:
         init_pipelines()
-        
     try:
-        # Runtime generation parameters configured to match testing constraints
-        gen_kwargs = {
-            "length_penalty": 0.8,
-            "num_beams": 8,
-            "max_length": 128,
-            "min_length": 32
-        }
+        # Convert the input text into token IDs for the BART model
+        inputs = _summarization_tokenizer(text, max_length=1024, truncation=True, return_tensors="pt")
         
-        # Execute abstractive text generation through the pipeline layer
-        prediction = _summarization_pipeline(text, **gen_kwargs)[0]
-        return prediction["summary_text"]
+        # Generation loop following the recommended settings from the book
+        summary_ids = _summarization_model.generate(
+            inputs["input_ids"],
+            num_beams=4,
+            max_length=max_length,
+            min_length=min_length,
+            length_penalty=2.0,
+            early_stopping=True
+        )
         
+        # Decode and return the final generated summary
+        summary_text = _summarization_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        return {"summary_text": summary_text}
     except Exception as e:
-        print(f"❌ Generation Error: {str(e)}")
-        return f"Error during summarization: {str(e)}"
+        return {"summary_text": f"Error during summarization: {str(e)}"}
